@@ -22,7 +22,7 @@ from megatron import get_args
 from megatron import get_num_microbatches
 from megatron import get_timers
 from megatron import mpu
-from megatron import p2p_communication
+import megatron.new_p2p_communication as p2p_communication
 from megatron.utils import unwrap_model
 from megatron.model import DistributedDataParallel as LocalDDP
 from megatron.model import Float16Module
@@ -513,10 +513,15 @@ def forward_backward_pipelining_without_interleaving(forward_step_func, data_ite
 
     # Run warmup forward passes.
     for i in range(num_warmup_microbatches):
-        input_tensor = recv_forward(recv_tensor_shapes, timers=timers)
+        if not mpu.is_pipeline_first_stage():
+            input_tensor, op = p2p_communication.recv_forward(recv_tensor_shapes[0], timers=timers)
+            op.wait()
+            input_tensor = p2p_communication._gather(input_tensor)
+        else:
+            input_tensor = None
         output_tensor = forward_step(forward_step_func, data_iterator, model,
                                      input_tensor, losses_reduced)
-        send_forward(output_tensor, send_tensor_shapes, timers=timers)
+        p2p_communication.send_forward(output_tensor, send_tensor_shapes[0], timers=timers)
 
         if not forward_only:
             input_tensors.append(input_tensor)
@@ -575,12 +580,17 @@ def forward_backward_pipelining_without_interleaving(forward_step_func, data_ite
             input_tensor = input_tensors.pop(0)
             output_tensor = output_tensors.pop(0)
 
-            output_tensor_grad = recv_backward(send_tensor_shapes, timers=timers)
+            if not mpu.is_pipeline_last_stage():
+                output_tensor_grad, op = p2p_communication.recv_backward(send_tensor_shapes[0], timers=timers)
+                op.wait()
+                output_tensor_grad = p2p_communication._gather(output_tensor_grad)
+            else:
+                output_tensor_grad = None
 
             input_tensor_grad = \
                 backward_step(optimizer, input_tensor, output_tensor,
                               output_tensor_grad)
 
-            send_backward(input_tensor_grad, recv_tensor_shapes, timers=timers)
+            p2p_communication.send_backward(input_tensor_grad, recv_tensor_shapes[0], timers=timers)
 
     return losses_reduced
