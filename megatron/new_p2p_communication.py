@@ -156,45 +156,25 @@ def _communicate(tensor_send_next, tensor_send_prev, recv_prev, recv_next,
 
     # Send tensors in both the forward and backward directions as appropriate.
     if tensor_send_prev is not None:
-        if args.use_gloo_for_pipeline_parallel_broadcast:
-            return torch.distributed.broadcast(tensor_send_prev,
-                mpu.get_pipeline_model_parallel_current_rank(),
-                group=mpu.get_pipeline_model_parallel_prev_rank_group(),
-                async_op=True)
-        print("{} send to {}".format(mpu.get_pipeline_model_parallel_current_rank(), mpu.get_pipeline_model_parallel_prev_rank()))
-        return torch.distributed.isend(tensor_send_prev,
-            mpu.get_pipeline_model_parallel_prev_rank(),
-            group=mpu.get_pipeline_model_parallel_prev_rank_group())
+        return torch.distributed.broadcast(tensor_send_prev,
+            mpu.get_pipeline_model_parallel_current_rank(),
+            group=mpu.get_pipeline_model_parallel_prev_rank_group(),
+            async_op=True)
     if tensor_send_next is not None:
-        if args.use_gloo_for_pipeline_parallel_broadcast:
-            return torch.distributed.broadcast(tensor_send_next,
-                mpu.get_pipeline_model_parallel_current_rank(),
-                group=mpu.get_pipeline_model_parallel_next_rank_group(),
-                async_op=True)
-        print("{} send to {}".format(mpu.get_pipeline_model_parallel_current_rank(), mpu.get_pipeline_model_parallel_next_rank()))
-        return torch.distributed.isend(tensor_send_next,
-            mpu.get_pipeline_model_parallel_next_rank(),
-            group=mpu.get_pipeline_model_parallel_next_rank_group())
+        return torch.distributed.broadcast(tensor_send_next,
+            mpu.get_pipeline_model_parallel_current_rank(),
+            group=mpu.get_pipeline_model_parallel_next_rank_group(),
+            async_op=True)
     if tensor_recv_prev is not None:
-        if args.use_gloo_for_pipeline_parallel_broadcast:
-            return tensor_recv_prev, torch.distributed.broadcast(tensor_recv_prev,
-                mpu.get_pipeline_model_parallel_prev_rank(),
-                group=mpu.get_pipeline_model_parallel_prev_rank_group(),
-                async_op=True)
-        print("{} recv from {}".format(mpu.get_pipeline_model_parallel_current_rank(), mpu.get_pipeline_model_parallel_prev_rank()))
-        return tensor_recv_prev, torch.distributed.irecv(tensor_recv_prev,
+        return tensor_recv_prev, torch.distributed.broadcast(tensor_recv_prev,
             mpu.get_pipeline_model_parallel_prev_rank(),
-            group=mpu.get_pipeline_model_parallel_prev_rank_group())
+            group=mpu.get_pipeline_model_parallel_prev_rank_group(),
+            async_op=True)
     if tensor_recv_next is not None:
-        if args.use_gloo_for_pipeline_parallel_broadcast:
-            return tensor_recv_next, torch.distributed.broadcast(tensor_recv_next,
-                mpu.get_pipeline_model_parallel_next_rank(),
-                group=mpu.get_pipeline_model_parallel_next_rank_group(),
-                async_op=True)
-        print("{} recv from {}".format(mpu.get_pipeline_model_parallel_current_rank(), mpu.get_pipeline_model_parallel_next_rank()))
-        return tensor_recv_next, torch.distributed.irecv(tensor_recv_next,
+        return tensor_recv_next, torch.distributed.broadcast(tensor_recv_next,
             mpu.get_pipeline_model_parallel_next_rank(),
-            group=mpu.get_pipeline_model_parallel_next_rank_group())
+            group=mpu.get_pipeline_model_parallel_next_rank_group(),
+            async_op=True)
 
     # if len(ops) > 0:
     #     reqs = torch.distributed.batch_isend_irecv(ops)

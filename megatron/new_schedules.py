@@ -302,7 +302,8 @@ def forward_backward_pipelining_with_interleaving(forward_step_func, data_iterat
         if not mpu.is_pipeline_first_stage(ignore_virtual=True) and recv_prev:
             input_tensor, op = p2p_communication.recv_forward(tensor_shape, timers=timers)
         if mpu.is_pipeline_first_stage(ignore_virtual=True):
-            if (recv_prev or int(dstore.get("last_stage_send")) > 1) and first_stage_recv < get_num_microbatches() * (num_model_chunks - 1):
+            # if (recv_prev or int(dstore.get("last_stage_send")) > 1) and first_stage_recv < get_num_microbatches() * (num_model_chunks - 1):
+            if recv_prev:
                 first_stage_recv_list.append(p2p_communication.recv_forward(tensor_shape, timers=timers))
                 first_stage_recv += 1
 
@@ -358,7 +359,8 @@ def forward_backward_pipelining_with_interleaving(forward_step_func, data_iterat
         if not mpu.is_pipeline_last_stage(ignore_virtual=True) and recv_next:
             output_tensor_grad, op = p2p_communication.recv_backward(tensor_shape, timers=timers)
         if mpu.is_pipeline_last_stage(ignore_virtual=True):
-            if (recv_next or int(dstore.get("first_stage_send")) > 1) and last_stage_recv < get_num_microbatches() * (num_model_chunks - 1):
+            # if (recv_next or int(dstore.get("first_stage_send")) > 1) and last_stage_recv < get_num_microbatches() * (num_model_chunks - 1):
+            if recv_next:
                 last_stage_recv_list.append(p2p_communication.recv_backward(tensor_shape, timers=timers))
                 last_stage_recv += 1
 
