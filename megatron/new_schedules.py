@@ -381,3 +381,31 @@ def forward_backward_pipelining_with_interleaving(forward_step_func, data_iterat
                 dstore.add("first_stage_send", 1)
 
     return losses_reduced
+
+def init_comm():
+    args = get_args()
+    tensor_shape = (args.seq_length, args.micro_batch_size, args.hidden_size)
+    dtype = args.params_dtype
+    if args.fp32_residual_connection:
+        dtype = torch.float
+    requires_grad = True
+    device = torch.cuda.current_device()
+    tensor_send = torch.empty(tensor_shape,
+                              requires_grad=requires_grad,
+                              device=device,
+                              dtype=dtype)
+    mpu.set_virtual_pipeline_model_parallel_rank(0)
+    if not mpu.is_pipeline_first_stage(ignore_virtual=True):
+        _, op = p2p_communication.recv_forward(tensor_shape)
+        op.wait()
+        op = p2p_communication.send_forward(
+                tensor_send,
+                tensor_shape=tensor_shape)
+        op.wait()
+    else:
+        op = p2p_communication.send_forward(
+                tensor_send,
+                tensor_shape=tensor_shape)
+        op.wait()
+        _, op = p2p_communication.recv_forward(tensor_shape)
+        op.wait()

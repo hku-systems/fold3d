@@ -54,6 +54,7 @@ from megatron.data.data_samplers import build_pretraining_data_loader
 from megatron.utils import calc_params_l2_norm
 from megatron.schedules import get_forward_backward_func
 from megatron.new_schedules import get_new_forward_backward_func
+from megatron.new_schedules import init_comm
 from megatron.nnew_schedules import get_nnew_forward_backward_func
 from megatron.utils import report_memory
 
@@ -729,6 +730,7 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
     timers('interval-time').start()
     print_datetime('before the start of training step')
     report_memory_flag = True
+    init_comm()
     while iteration < args.train_iters:
         update_num_microbatches(args.consumed_train_samples)
         loss_dict, skipped_iter, grad_norm, num_zeros_in_grad = \
